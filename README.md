@@ -34,7 +34,7 @@ This will open the notebook in your browser where you can see the code execution
 
 ## Code Structure
 
-* **code:** This folder contains the Jupyter notebooks for each figure in the paper.
+* **notebooks:** This folder contains the Jupyter notebooks for each figure in the paper.
 * **utils:** This folder contains helper functions used across the notebooks (data processing, plotting, etc.).
 
 ## Notebooks
