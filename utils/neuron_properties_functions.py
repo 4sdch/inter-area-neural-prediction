@@ -1,3 +1,5 @@
+# Description: This file contains functions for analyzing neural data, specifically for mouse and monkey datasets
+
 main_dir = '/Users/diannahidalgo/Documents/thesis_shenanigans/aim2_project/inter_areal_predictability/'
 func_dir = main_dir + 'utils/'
 
@@ -17,6 +19,15 @@ from ridge_regression_functions import get_best_alpha_evars
 import time
 
 def create_empty_mouse_stats_dict(main_dir):
+    """
+    Create an empty dictionary to store mouse statistics.
+
+    Args:
+    - main_dir (str): Path to the main directory containing data.
+
+    Returns:
+    - mouse_stats (dict): Empty dictionary to store mouse statistics.
+    """
     mouse_stats={}
     for dataset_type in ['natimg32','ori32']:
         mouse_stats[dataset_type]={}
@@ -36,6 +47,19 @@ def create_empty_mouse_stats_dict(main_dir):
     return mouse_stats
 
 def get_SNR_all_mice(main_dir, mouse_stats):
+    """
+    Compute Signal to Noise Ratio (SNR) for all mice.
+    signal to noise ratio is calculated using the average 
+    activity in response to stimuli over the average activity
+    in response to a gray screen presentation.
+    
+    Args:
+    - main_dir (str): Path to the main directory containing data.
+    - mouse_stats (dict): Dictionary containing mouse statistics.
+
+    Returns:
+    - None
+    """
     for dataset_type in ['natimg32','ori32']:
         mt = cs.mt_retriever(main_dir, dataset_type=dataset_type)
         mousenames = list(mouse_stats[dataset_type].keys())
@@ -49,6 +73,20 @@ def get_SNR_all_mice(main_dir, mouse_stats):
                         
             
 def get_split_half_mean_mouse_seed(s_idx, unique_istims, resp, istim,seed=None):
+    """
+    Compute split-half reliability for a given seed and stimulus index.
+
+    Args:
+    - s_idx (int): Index of the stimulus.
+    - unique_istims (numpy.ndarray): Array containing unique stimulus indices.
+    - resp (numpy.ndarray): Array containing neural responses.
+    - istim (numpy.ndarray): Array containing stimulus indices.
+    - seed (int): Seed for random number generation.
+
+    Returns:
+    - means_half1 (numpy.ndarray): Mean of responses for the first half.
+    - means_half2 (numpy.ndarray): Mean of responses for the second half.
+    """
     s = unique_istims[s_idx]
     loc = np.where(istim == s)[0]
     if len(loc) > 1:
@@ -66,6 +104,17 @@ def get_split_half_mean_mouse_seed(s_idx, unique_istims, resp, istim,seed=None):
     return means_half1, means_half2
 
 def get_split_half_r_mouse(istim, resp, seed=None):
+    """
+    Compute split-half reliability for all neurons.
+
+    Args:
+    - istim (numpy.ndarray): Array containing stimulus indices.
+    - resp (numpy.ndarray): Array containing neural responses.
+    - seed (int): Seed for random number generation.
+
+    Returns:
+    - scsb (numpy.ndarray): Split-half reliability values for each neuron.
+    """
     unique_istims = np.unique(istim)
     num_unique_istims = len(unique_istims)
     num_neurons = resp.shape[1]
@@ -90,6 +139,17 @@ def get_split_half_r_mouse(istim, resp, seed=None):
     return scsb
 
 def get_max_corr_vals_all_mice(main_dir, mouse_stats,remove_pcs=False):
+    """
+    Compute maximum correlation values for all mice.
+
+    Args:
+    - main_dir (str): Path to the main directory containing data.
+    - mouse_stats (dict): Dictionary containing mouse statistics.
+    - remove_pcs (bool): Flag indicating whether to remove principal components.
+
+    Returns:
+    - None
+    """
     for dataset_type in ['natimg32','ori32']:
         mt = cs.mt_retriever(main_dir, dataset_type=dataset_type)
         mousenames = list(mouse_stats[dataset_type].keys())
@@ -115,6 +175,17 @@ def get_max_corr_vals_all_mice(main_dir, mouse_stats,remove_pcs=False):
             mouse_stats[dataset_type + '_spont'][mouse]['L4']['max_corr_val']=np.nanmax(np.abs(l23_l4_connx), axis=0)
 
 def get_split_half_r_all_mice(main_dir, mouse_stats, remove_pcs=False):
+    """
+    Compute split-half reliability for all mice.
+
+    Args:
+    - main_dir (str): Path to the main directory containing data.
+    - mouse_stats (dict): Dictionary containing mouse statistics.
+    - remove_pcs (bool): Flag indicating whether to remove principal components.
+
+    Returns:
+    - None
+    """
     rem_pc=''
     if remove_pcs is True:
         rem_pc='_removed_32_pcs'
@@ -128,7 +199,22 @@ def get_split_half_r_all_mice(main_dir, mouse_stats, remove_pcs=False):
             mouse_stats[dataset_type][mouse]['L4']['split_half_r'+ rem_pc]=get_split_half_r_mouse(istim, resp_L4)
 
 def get_evars_all_mice(main_dir, mouse_stats, activity_type='resp',n_splits=10, frames_to_reduce=5,
-                       control_shuffle=False, remove_pcs=False):
+                        control_shuffle=False, remove_pcs=False):
+    """
+    Compute explained variance for all mice.
+
+    Args:
+    - main_dir (str): Path to the main directory containing data.
+    - mouse_stats (dict): Dictionary containing mouse statistics.
+    - activity_type (str): Type of neural activity ('resp' or 'spont').
+    - n_splits (int): Number of splits for cross-validation.
+    - frames_to_reduce (int): Number of frames to reduce.
+    - control_shuffle (bool): Flag indicating whether to shuffle for control.
+    - remove_pcs (bool): Flag indicating whether to remove principal components.
+
+    Returns:
+    - None
+    """
     start_time = time.time()
     alpha_unique_options = [5e3,1e4,5e4,1e5,5e5,1e6,5e6,1e7]
     area = 'L23'
@@ -180,6 +266,12 @@ def get_dates(condition_type):
         return ['280617']
 
 def create_empty_monkey_stats_dict():
+    """
+    Create an empty dictionary for monkey statistics.
+
+    Returns:
+    - monkey_stats (dict): Empty dictionary for monkey statistics.
+    """
     monkey_stats={}
     for dataset_type in ['SNR', 'SNR_spont','RS','RS_open','RS_closed','RF_thin','RF_thin_spont','RF_large','RF_large_spont']:
         monkey_stats[dataset_type]={}
@@ -192,6 +284,7 @@ def create_empty_monkey_stats_dict():
 
 
 def get_split_half_shape_monkey_seed(resp_array, date, condition_type, subsample_size=20):
+    
     binned_epochs = get_img_resp_avg_sem(resp_array, date, condition_type=condition_type, get_chunks=True)
     all_epoch_indices = np.arange(len(binned_epochs))
     epoch_indices = np.random.choice(all_epoch_indices, subsample_size)
@@ -202,6 +295,7 @@ def get_split_half_shape_monkey_seed(resp_array, date, condition_type, subsample
     return correlations*2/(1+correlations)
 
 def get_split_half_r_monkey(resp_array, date, condition_type, n_perms=100):
+    
     results = Parallel(n_jobs=-1)(delayed(get_split_half_shape_monkey_seed)(resp_array, date, condition_type) for p in range(n_perms))
     v_elec_mean_rs = np.array(results).mean(axis=0)
     return v_elec_mean_rs
@@ -245,6 +339,16 @@ all_ini_stim_offs = {'SNR': 400, 'SNR_spont': 300, 'RS': None,
                       'RF_large_spont':300}
 
 def get_split_half_r_monkey_all_dates(monkey_stats, w_size=25):
+    """
+    Compute split-half reliability for all monkey dates.
+
+    Args:
+    - monkey_stats (dict): Dictionary containing monkey statistics.
+    - w_size (int): Window size.
+
+    Returns:
+    - None
+    """
     area='V4'
     area2='V1'
     for dataset_type in ['RF_large','SNR','RF_thin']:
@@ -275,6 +379,16 @@ def get_SNR_monkey(binned_resp, binned_spont):
     return SNR
 
 def get_SNR_monkey_all_dates(monkey_stats, w_size=1):
+    """
+    Compute SNR for all monkey dates.
+
+    Args:
+    - monkey_stats (dict): Dictionary containing monkey statistics.
+    - w_size (int): Window size.
+
+    Returns:
+    - None
+    """
     area='V4'
     area2='V1'
     for dataset_type in ['SNR','RF_large','RF_thin']:
@@ -363,6 +477,16 @@ def get_1_vs_rest_r_monkey_RF(resp_array, cond_labels, date, condition_type, tri
 
 from macaque_data_functions import get_get_condition_type, get_resps, get_img_resp_avg_sem
 def get_one_vs_rest_r_monkey_all_dates(monkey_stats, w_size=25):
+    """
+    Compute 1 vs. rest reliability for all monkey dates.
+
+    Args:
+    - monkey_stats (dict): Dictionary containing monkey statistics.
+    - w_size (int): Window size.
+
+    Returns:
+    - None
+    """
     area='V4'
     area2='V1'
     for dataset_type in ['RF_large','SNR','RF_thin']:
@@ -382,6 +506,16 @@ def get_one_vs_rest_r_monkey_all_dates(monkey_stats, w_size=25):
 
 
 def get_evar_monkey_all_dates(monkey_stats, w_size=25,n_splits=10, control_shuffle=False):
+    """
+    Compute explained variance for all monkey dates.
+
+    Args:
+    - monkey_stats (dict): Dictionary containing monkey statistics.
+    - w_size (int): Window size.
+
+    Returns:
+    - None
+    """
     start_time = time.time()
     alpha_monkeys = [100, 500.0, 1000.0, 5000.0, 10000.0, 50000.0, 100000.0]
     area='V4'

@@ -12,6 +12,13 @@ class mt_retriever:
     # omitting natimg32_M150824_MP019_2016-03-23 due to no cells in indices 385 and 420
     def __init__(self, main_dir, dataset_type):
         ## loads all the info we need 
+        """
+        Initialize mt_retriever object.
+
+        Parameters:
+        - main_dir: Main directory path
+        - dataset_type: Type of dataset ('ori32' or 'natimg32')
+        """
         self.mts = {}
         if 'ori32' in dataset_type:
             self.filenames = copy.deepcopy(self.ori32_filenames)
@@ -23,6 +30,14 @@ class mt_retriever:
                 self.mts[dataset] = sio.loadmat(BytesIO(fileContent))
             
     def set_raw_responses(self):
+        """
+        Set raw responses for stimulus and spontaneous activity.
+
+        Returns:
+        - resp: Stimulus responses
+        - istim: Identifiers of stimuli in resp
+        - spont: Spontaneous activity
+        """
         #Giorgia OG code
         ### stimulus responses
         resp = self.mt['stim'][0]['resp'][0]    # stimuli by neurons  ## stimulus response by neurons?
@@ -31,6 +46,13 @@ class mt_retriever:
         return resp, istim, spont
 
     def add_preprocessing(self):
+        """
+        Preprocess raw responses.
+
+        Returns:
+        - resp: Preprocessed responses
+        - spont: Preprocessed spontaneous activity
+        """
         resp, istim, spont = self.set_raw_responses()
         #### Now add preprocessing --> from notebook https://github.com/MouseLand/stringer-pachitariu-et-al-2018b/blob/master/python/powerlaws.ipynb
         istim -= 1 # get out of MATLAB convention
@@ -41,6 +63,13 @@ class mt_retriever:
         return resp, spont
     
     def subtract_spont(self):
+        """
+        Subtract spontaneous activity and normalize responses.
+
+        Returns:
+        - resp: Normalized responses
+        - spont: Normalized spontaneous activity
+        """
         resp, spont = self.add_preprocessing()
         mu = spont.mean(axis=0)
         sd = spont.std(axis=0) + 1e-6
@@ -50,6 +79,13 @@ class mt_retriever:
         return resp, spont
     
     def subtract_spot_and_mean_center(self):
+        """
+        Subtract spontaneous activity, mean center, and normalize responses.
+
+        Returns:
+        - resp: Normalized and mean-centered responses
+        - spont: Normalized spontaneous activity
+        """
         resp, spont = self.add_preprocessing()
         mu = spont.mean(axis=0)
         sd = spont.std(axis=0) + 1e-6
@@ -60,6 +96,13 @@ class mt_retriever:
         return resp, spont
     
     def subtract_spont_pc_and_mean_center(self):
+        """
+        Subtract spontaneous activity, project onto principal components, and mean center responses.
+
+        Returns:
+        - resp: Mean-centered responses
+        - spont: Normalized spontaneous activity
+        """
         resp, spont = self.add_preprocessing()
         # subtract spont (32D)  ## i have to go over this
         mu = spont.mean(axis=0)
@@ -74,6 +117,13 @@ class mt_retriever:
         return resp, spont
     
     def subtract_spont_pc(self):
+        """
+        Subtract spontaneous activity and project onto principal components.
+
+        Returns:
+        - resp: Responses after PCA
+        - spont: Normalized spontaneous activity
+        """
         resp, spont = self.add_preprocessing()
         # subtract spont (32D)  ## i have to go over this
         mu = spont.mean(axis=0)
@@ -86,6 +136,14 @@ class mt_retriever:
 
 
     def get_L_indices(self):
+        """
+        Get indices of neurons in each layer.
+
+        Returns:
+        - L1indices: Indices of neurons in Layer 1
+        - L23indices: Indices of neurons in Layer 2/3
+        -
+        """
         resp, spont = self.subtract_spot_and_mean_center()
         n_neurons = np.shape(resp)[1]
         
@@ -116,6 +174,29 @@ class mt_retriever:
         return L1indices, L23indices, L2indices, L3indices, L4indices
     
     def retrieve_layer_activity(self, activity_type, dataset_name, mean_center=False, removed_pc = False):
+        """
+        Retrieve layer activity based on specified activity type and dataset.
+
+        Parameters:
+        - activity_type: Type of activity ('resp' for responses, 'spont' for spontaneous activity)
+        - dataset_name: Name of the dataset to retrieve activity from
+        - mean_center: Boolean indicating whether to mean-center the responses (default: False)
+        - removed_pc: Boolean indicating whether to remove principal components from the responses (default: False)
+
+        Returns:
+        - If activity_type is 'resp':
+            - resp_L1: Responses for Layer 1
+            - resp_L23: Responses for Layer 2/3
+            - resp_L2: Responses for Layer 2
+            - resp_L3: Responses for Layer 3
+            - resp_L4: Responses for Layer 4
+        - If activity_type is 'spont':
+            - spont_L1: Spontaneous activity for Layer 1
+            - spont_L23: Spontaneous activity for Layer 2/3
+            - spont_L2: Spontaneous activity for Layer 2
+            - spont_L3: Spontaneous activity for Layer 3
+            - spont_L4: Spontaneous activity for Layer 4
+        """
         self.mt = self.mts[dataset_name]
         if mean_center is True:
             resp, spont = self.subtract_spot_and_mean_center()

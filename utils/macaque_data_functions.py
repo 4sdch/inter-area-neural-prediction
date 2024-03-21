@@ -7,8 +7,6 @@ import copy
 main_dir = '/Users/diannahidalgo/Documents/thesis_shenanigans/aim2_project/inter_areal_predictability/'
 
 
-
-
 def get_epoch_times(resp_array, date, stim_on=0, stim_off=400, spont_stim_off =200, monkey='L'):
     """
     This function reads metadata, processes epoch times, and extracts response and spontaneous activity
@@ -162,9 +160,41 @@ def bin_labels(data, window_size, **kwargs):
         binned_data[i] = np.median(window_data, axis=0)  # You can use a different aggregation function here
     return binned_data
 
-def isolate_norm_resps_RF(resp_array, date='260617', 
-                       monkey='L', bin_function=None, 
-                       stim_on=0, stim_off=1000, raw_resp=False, **kwargs):
+def isolate_norm_resps_RF(resp_array, date='260617', monkey='L', bin_function=None, stim_on=0, stim_off=1000, raw_resp=False, **kwargs):
+    """
+    This function isolates responses for moving bars by removing gray screen presentation activity and
+    optionally normalizes the responses.
+    
+    :param resp_array: The `resp_array` parameter is a numpy array containing neural responses
+    data. This function processes this data to isolate responses for moving bars by removing gray
+    screen presentation activity. The function also allows for binning the responses using a specified
+    function, normalizing the responses, and returning the normalized responses
+    :param date: The `date` parameter in the `isolate_norm_resps_RF` function is used to specify the
+    date for which the responses are being analyzed. It has a default value of '260617' if not provided
+    explicitly, defaults to 260617 (optional)
+    :param monkey: The `monkey` parameter in the `isolate_norm_resps_RF` function is used to specify the
+    monkey from which the responses were recorded. It is a string parameter that indicates the monkey's
+    identity, defaults to L (optional)
+    :param bin_function: The `bin_function` parameter in the `isolate_norm_resps_RF` function is a
+    function that can be applied to each epoch response in order to bin or process the data in a
+    specific way. This function should take an epoch response as input and return the processed or
+    binned version of that
+    :param stim_on: The `stim_on` parameter in the `isolate_norm_resps_RF` function specifies the time
+    point at which the stimulus starts during the experiment. It is used to determine the beginning of
+    the stimulus presentation period for isolating responses to moving bars in the `resp_array`,
+    defaults to 0 (optional)
+    :param stim_off: The `stim_off` parameter in the `isolate_norm_resps_RF` function specifies the time
+    point at which the stimulus ends during data processing. It is used to define the duration of the
+    stimulus presentation window. In the provided function, the default value for `stim_off` is set to,
+    defaults to 1000 (optional)
+    :param raw_resp: The `raw_resp` parameter in the `isolate_norm_resps_RF` function is a boolean flag
+    that determines whether to return the raw responses or the normalized responses. If `raw_resp` is
+    set to `True`, the function will return the true responses without normalization. If `raw_resp`,
+    defaults to False (optional)
+    :return: If the `raw_resp` parameter is `True`, the function will return the `true_resp` array and
+    `cond_labels`. If `raw_resp` is not `True`, the function will return the `norm_resp` array and
+    `binned_labels`.
+    """
     ### removes the gray screen presentation activity to only obtain isolated responses for moving bars 
     true_resp, true_spont, cond_labels = get_epoch_times_RF(resp_array, stim_on=stim_on, stim_off=stim_off, date=date, monkey=monkey)
 
@@ -191,9 +221,42 @@ def isolate_norm_resps_RF(resp_array, date='260617',
         # print(norm_resp.shape)
         return norm_resp, binned_labels
 
-def isolate_norm_spont_RF(resp_array, date='260617', 
-                       monkey='L', bin_function=None, 
-                       stim_on=0, stim_off=1000,raw_resp=False,spont_stim_off=300, **kwargs):
+def isolate_norm_spont_RF(resp_array, date='260617', monkey='L', bin_function=None, stim_on=0, stim_off=1000,raw_resp=False,spont_stim_off=300, **kwargs):
+    """
+    This Python function isolates responses for gray screen activity by removing moving bars activity
+    and optionally binning the data.
+    
+    :param resp_array: `resp_array` is likely a numpy array containing responses from a neural recording
+    experiment. The function `isolate_norm_spont_RF` processes this array to isolate responses to gray
+    screen activity by removing moving bars activity
+    :param date: The `date` parameter in the `isolate_norm_spont_RF` function is used to specify the
+    date for which the responses are being analyzed. It has a default value of '260617' if not provided
+    explicitly when calling the function, defaults to 260617 (optional)
+    :param monkey: The `monkey` parameter in the `isolate_norm_spont_RF` function is used to specify the
+    monkey from which the response data is obtained, defaults to L (optional)
+    :param bin_function: The `bin_function` parameter in the `isolate_norm_spont_RF` function is used to
+    specify a function that will be applied to each epoch of spontaneous activity data before further
+    processing. This function can be used to perform operations such as binning, averaging, or any other
+    data transformation on the
+    :param stim_on: The `stim_on` parameter in the `isolate_norm_spont_RF` function specifies the time
+    point at which the stimulus starts during the recording. It is used to define the beginning of the
+    stimulus presentation window for isolating responses related to the gray screen activity, defaults
+    to 0 (optional)
+    :param stim_off: The `stim_off` parameter in the `isolate_norm_spont_RF` function represents the
+    time point at which the stimulus ends during the experiment. It is used to define the duration of
+    the stimulus presentation period. In this function, it is set to a default value of 1000, defaults
+    to 1000 (optional)
+    :param raw_resp: The `raw_resp` parameter in the `isolate_norm_spont_RF` function is a boolean flag
+    that determines whether to return the raw spontaneous responses or not. If `raw_resp` is set to
+    `True`, the function will return the raw spontaneous responses along with the condition labels. If
+    `, defaults to False (optional)
+    :param spont_stim_off: The `spont_stim_off` parameter in the `isolate_norm_spont_RF` function
+    represents the duration (in milliseconds) after the stimulus offset where spontaneous activity is
+    considered. In this function, it is used to determine the time window for isolating spontaneous
+    responses after the stimulus presentation has ended, defaults to 300 (optional)
+    :return: The function `isolate_norm_spont_RF` returns the normalized spontaneous responses and
+    condition labels after isolating the gray screen activity from the input response array.
+    """
     ### removes the moving bars activity to only obtain isolated responses for gray screen activity 
     true_resp, true_spont, cond_labels = get_epoch_times_RF(resp_array, stim_on=stim_on, stim_off=stim_off, date=date, monkey=monkey, spont_stim_off=spont_stim_off)
     if raw_resp is True:
@@ -209,10 +272,45 @@ def isolate_norm_spont_RF(resp_array, date='260617',
 
     return norm_spont, binned_labels
 
-def isolate_norm_resps(resp_array, date='250717', 
-                       monkey='L', bin_function=None, 
-                       stim_on=0, stim_off=400, shuffle=False,
-                        seed=None, raw_resp=False, **kwargs):
+def isolate_norm_resps(resp_array, date='250717', monkey='L', bin_function=None, stim_on=0, stim_off=400, shuffle=False, seed=None, raw_resp=False, **kwargs):
+    """
+    This function isolates responses for checkerboard presentations by removing gray screen activity and
+    optionally performs trial shuffling or normalization.
+    
+    :param resp_array: `resp_array` is an array containing neural responses data, typically in the form
+    of responses to checkerboard presentations
+    :param date: The `date` parameter in the `isolate_norm_resps` function is used to specify the date
+    for which the responses are being analyzed. It is set to a default value of '250717' but can be
+    changed to any specific date for which you want to isolate responses, defaults to 250717 (optional)
+    :param monkey: The `monkey` parameter in the `isolate_norm_resps` function is used to specify the
+    monkey from which the responses were recorded, defaults to L (optional)
+    :param bin_function: The `bin_function` parameter in the `isolate_norm_resps` function allows you to
+    specify a function that will be applied to each epoch response before further processing. This can
+    be useful for binning or aggregating the data in a specific way before normalization or analysis
+    :param stim_on: The `stim_on` parameter in the `isolate_norm_resps` function specifies the time
+    point at which the stimulus presentation begins. It is used to define the start of the epoch for
+    extracting responses to the checkerboard presentations, defaults to 0 (optional)
+    :param stim_off: The `stim_off` parameter in the `isolate_norm_resps` function represents the end
+    time of the stimulus presentation in milliseconds. It is used to define the duration of the stimulus
+    presentation window for isolating responses to checkerboard presentations, defaults to 400
+    (optional)
+    :param shuffle: The `shuffle` parameter in the `isolate_norm_resps` function allows you to specify
+    whether you want to perform trial shuffling of checkerboard images before processing the responses.
+    If `shuffle` is set to `True`, the function will shuffle the order of the responses using random
+    indices before further, defaults to False (optional)
+    :param seed: The `seed` parameter in the `isolate_norm_resps` function is used to set the random
+    seed for reproducibility when shuffling the indices of the responses. By setting a specific seed
+    value, you can ensure that the same random shuffling is applied each time the function is called
+    with
+    :param raw_resp: The `raw_resp` parameter in the `isolate_norm_resps` function is a boolean flag
+    that determines whether to return the raw responses without normalization or not. If `raw_resp` is
+    set to `True`, the function will return the binned responses reshaped as a 2D array, defaults to
+    False (optional)
+    :return: The function `isolate_norm_resps` returns either the reshaped binned responses or the
+    normalized responses based on the input parameters. If `raw_resp` is True, it returns the binned
+    responses reshaped as a 2D array. If `raw_resp` is False, it returns the normalized responses
+    calculated as the binned responses minus the mean of the binned spontaneous responses, resh
+    """
     ### removes the gray screen presentation activity to only obtain isolated responses for checkerboard presentations
     true_resp, true_spont = get_epoch_times(resp_array, stim_on=stim_on, stim_off=stim_off, date=date, monkey=monkey)
     
@@ -240,8 +338,41 @@ def isolate_norm_resps(resp_array, date='250717',
         norm_resp = norm_resp.reshape(-1, resp_array.shape[1])
         return norm_resp
 
-def isolate_norm_spont(resp_array, date='250717', monkey='L',
-                        bin_function=None, shuffle=False, seed=None, raw_resp=False,spont_stim_off=300, **kwargs):
+def isolate_norm_spont(resp_array, date='250717', monkey='L', bin_function=None, shuffle=False, seed=None, raw_resp=False,spont_stim_off=300, **kwargs):
+    """
+    This Python function isolates and normalizes spontaneous responses from an array of responses, with
+    options for binning, shuffling, and reshaping the data.
+    
+    :param resp_array: `resp_array` is a numpy array containing the response data
+    :param date: The `date` parameter in the function `isolate_norm_spont` is used to specify the date
+    for which the response array should be analyzed. It has a default value of '250717' if not provided
+    explicitly, defaults to 250717 (optional)
+    :param monkey: The `monkey` parameter in the `isolate_norm_spont` function is used to specify the
+    monkey from which the response data is coming, defaults to L (optional)
+    :param bin_function: The `bin_function` parameter in the `isolate_norm_spont` function allows you to
+    specify a function that will be applied to each epoch of spontaneous activity data before further
+    processing. This function should take an epoch of spontaneous activity data as input and return the
+    processed output
+    :param shuffle: The `shuffle` parameter in the `isolate_norm_spont` function is a boolean flag that
+    determines whether the data should be shuffled before processing. If `shuffle` is set to `True`, the
+    function will shuffle the data using random indices before further processing. This can be useful
+    for randomizing, defaults to False (optional)
+    :param seed: The `seed` parameter in the `isolate_norm_spont` function is used to set the random
+    seed for reproducibility when shuffling the indices of the binned spontaneous responses. If a
+    specific `seed` value is provided, it will ensure that the same random shuffling of indices is
+    :param raw_resp: The `raw_resp` parameter in the `isolate_norm_spont` function is a boolean flag
+    that determines whether the function should return the binned spontaneous responses reshaped as a 2D
+    array or as a 1D array, defaults to False (optional)
+    :param spont_stim_off: The `spont_stim_off` parameter in the `isolate_norm_spont` function is used
+    to specify the time offset for spontaneous activity stimulation. This parameter determines the time
+    at which the spontaneous activity ends. In the function, it is set to a default value of 300,
+    defaults to 300 (optional)
+    :return: The function `isolate_norm_spont` returns the normalized spontaneous responses based on the
+    input parameters and conditions specified in the function. If `raw_resp` is True, it returns the
+    reshaped binned spontaneous responses. If `shuffle` is True, it shuffles the indices before
+    reshaping the binned spontaneous responses. Finally, it returns the normalized spontaneous responses
+    in the shape (-1, resp
+    """
     
     true_resp, true_spont = get_epoch_times(resp_array, date, spont_stim_off=spont_stim_off)
 
@@ -265,6 +396,28 @@ def isolate_norm_spont(resp_array, date='250717', monkey='L',
     return norm_spont
 
 def isolate_RS_resp(resp_array, date, open_or_closed = 'Open_eyes', monkey='L', bin_function=None, **kwargs):
+    """
+    This Python function isolates and processes response data based on specified parameters such as
+    date, eye state, and monkey.
+    
+    :param resp_array: The `resp_array` parameter is likely a NumPy array containing response data. This
+    array is used within the function to extract specific epochs of response data based on the provided
+    indices and other parameters
+    :param date: The `date` parameter in the `isolate_RS_resp` function is used to specify the date for
+    which you want to isolate responses
+    :param open_or_closed: The `open_or_closed` parameter in the `isolate_RS_resp` function specifies
+    whether the eyes are open or closed during the response. It has a default value of 'Open_eyes', but
+    you can also provide 'Closed_eyes' as an alternative value, defaults to Open_eyes (optional)
+    :param monkey: The `monkey` parameter in the `isolate_RS_resp` function specifies which monkey's
+    data to retrieve, defaults to L (optional)
+    :param bin_function: The `bin_function` parameter in the `isolate_RS_resp` function is a function
+    that can be passed as an argument to perform some operation on the epoch response data. This
+    function will be applied to each epoch of the response array before it is extended to the final
+    response array `resp_`
+    :return: The function `isolate_RS_resp` returns the response array `resp_` after processing it based
+    on the provided parameters such as the response array, date, eye state (open or closed), monkey,
+    binning function, and any additional keyword arguments.
+    """
     eye_query = f'state == "{open_or_closed}"'
     df_RS = pd.read_csv(main_dir + f'data/chen/metadata/monkey_{monkey}/epochs_{monkey}_RS_{date}.csv')
     df_RS_new = df_RS.query(eye_query).copy()
@@ -299,6 +452,32 @@ def isolate_RS_resp(resp_array, date, open_or_closed = 'Open_eyes', monkey='L', 
 from scipy.stats import sem
 
 def get_img_resp_avg_sem(resp_array, date, condition_type, w_size=25,chunk_size=None,get_chunks=False):
+    """
+    This Python function calculates the average and standard error of the mean of neural responses based
+    on input parameters such as response array, date, condition type, window size, and chunk size.
+    
+    :param resp_array: `resp_array` is a numpy array containing responses from neurons. The function
+    `get_img_resp_avg_sem` processes this array along with other parameters to calculate the average and
+    standard error of the mean (SEM) of neuron responses based on the specified conditions
+    :param date: The `date` parameter is used to specify the date for which you want to analyze the
+    image responses. It is likely used within the function to filter the responses based on the provided
+    date
+    :param condition_type: Condition type refers to the type of experimental condition or stimulus being
+    presented to the neurons. It could include conditions like 'RF_spont', 'RF', 'SNR_spont', 'SNR',
+    etc. These conditions may have different chunk sizes based on the type
+    :param w_size: The `w_size` parameter in the `get_img_resp_avg_sem` function represents the window
+    size used for calculating the chunk size based on the condition type. It is used to determine the
+    number of frames in each chunk based on the condition type specified, defaults to 25 (optional)
+    :param chunk_size: The `chunk_size` parameter in the `get_img_resp_avg_sem` function determines the
+    size of each chunk that the response array will be split into. The size of the chunks is calculated
+    based on the `condition_type` provided. If `chunk_size` is not explicitly provided, it is calculated
+    :param get_chunks: The `get_chunks` parameter in the `get_img_resp_avg_sem` function is a boolean
+    flag that determines whether the function should return the chunks_array or not. If `get_chunks` is
+    set to `True`, the function will return the chunks_array. If `get_chunks` is set to, defaults to
+    False (optional)
+    :return: the average neuron response and the standard error of the mean (SEM) of the neuron
+    response.
+    """
 
     if chunk_size is None:
         if 'RF_spont' in condition_type:
@@ -340,6 +519,21 @@ def is_factor(number, n):
     return n % number == 0
 
 def binning_with_sum(data, window_size, e=0,**kwargs):
+    """
+    The function `binning_with_sum` takes a dataset, divides it into windows of a specified size, and
+    calculates the sum of values within each window.
+    
+    :param data: The `data` parameter is the input data that you want to bin. It should be a 2D numpy
+    array where each row represents a data point and each column represents a feature
+    :param window_size: The `window_size` parameter in the `binning_with_sum` function represents the
+    size of the window over which you want to aggregate the data. It determines how many data points
+    will be grouped together for summing
+    :param e: The parameter `e` in the `binning_with_sum` function seems to be a placeholder variable
+    that is not being used within the function. It is defined as a keyword argument with a default value
+    of 0, but it is not utilized in the function logic, defaults to 0 (optional)
+    :return: The function `binning_with_sum` returns binned data where each row represents the sum of
+    data points within a specified window size along the columns of the input data array.
+    """
     bin_datapoints = int(np.floor(len(data)/window_size))
     binned_data = np.zeros([bin_datapoints, data.shape[1]])
     for i in range(bin_datapoints):
@@ -348,12 +542,59 @@ def binning_with_sum(data, window_size, e=0,**kwargs):
     return binned_data
 
 
-def get_resps(condition_type='SNR', date='090817', monkey='L', w_size = 25, stim_on=0, 
-              stim_off=400, shuffle=False, get_RF_labels=False, bin_function=binning_with_sum,
-              keep_SNR_elecs=False, raw_resp=False, spont_stim_off=300):
+def get_resps(condition_type='SNR', date='090817', monkey='L', w_size = 25, stim_on=0,  stim_off=400, shuffle=False, get_RF_labels=False, bin_function=binning_with_sum, keep_SNR_elecs=False, raw_resp=False, spont_stim_off=300):
+    """
+    This Python function retrieves neural response data based on specified conditions and electrode
+    information for further analysis.
+    
+    :param condition_type: The `condition_type` parameter in the `get_resps` function is used to specify
+    the type of condition for which you want to retrieve responses. It can take on different values
+    based on the type of data you are interested in analyzing. The function uses this parameter to
+    determine which data files to read, defaults to SNR (optional)
+    :param date: The `date` parameter in the `get_resps` function is used to specify the date for which
+    the data is being retrieved. It is a string parameter that represents the date in the format
+    'MMDDYY', defaults to 090817 (optional)
+    :param monkey: The `monkey` parameter in the `get_resps` function is used to specify the monkey from
+    which the data is being analyzed. It is used to locate the relevant data files and metadata
+    associated with the specified monkey for further processing within the function, defaults to L
+    (optional)
+    :param w_size: The `w_size` parameter in the `get_resps` function represents the window size for
+    binning the neural responses. It is used to define the size of the time window over which the neural
+    activity will be aggregated or analyzed. This parameter determines the duration of each time bin for
+    processing the neural, defaults to 25 (optional)
+    :param stim_on: The `stim_on` parameter in the `get_resps` function represents the time point at
+    which the stimulus starts in the experiment. It is used to specify the onset time of the stimulus in
+    milliseconds relative to the start of the recording, defaults to 0 (optional)
+    :param stim_off: The `stim_off` parameter in the `get_resps` function represents the time point at
+    which the stimulus ends during data processing. In the provided function, it is set to a default
+    value of 400. This means that the stimulus ends at time point 400 in the data processing timeline,
+    defaults to 400 (optional)
+    :param shuffle: The `shuffle` parameter in the `get_resps` function is a boolean flag that
+    determines whether the data should be shuffled before processing. If `shuffle` is set to `True`, the
+    data will be randomly shuffled before further processing. If set to `False`, the data will remain in
+    its, defaults to False (optional)
+    :param get_RF_labels: The `get_RF_labels` parameter in the `get_resps` function is a boolean flag
+    that determines whether to return condition labels along with the response arrays for the V4
+    cortical area. If `get_RF_labels` is set to `True`, the function will return the response arrays for
+    V4, defaults to False (optional)
+    :param bin_function: The `bin_function` parameter in the `get_resps` function is used to specify the
+    binning function that will be applied to the data. In this case, the default binning function being
+    used is `binning_with_sum`. This function likely performs some form of binning operation on the
+    :param keep_SNR_elecs: The `keep_SNR_elecs` parameter in the `get_resps` function is a boolean flag
+    that determines whether to keep only the electrodes with Signal-to-Noise Ratio (SNR) less than 2,
+    defaults to False (optional)
+    :param raw_resp: The `raw_resp` parameter in the `get_resps` function is a boolean flag that
+    determines whether the raw responses should be returned or not. If `raw_resp` is set to `True`, the
+    function will return the raw responses along with any processed data. If `raw_resp` is, defaults to
+    False (optional)
+    :param spont_stim_off: The `spont_stim_off` parameter in the `get_resps` function is used to specify
+    the time point at which the spontaneous stimulus ends. This parameter is used in the function to
+    process neural response data based on the timing of the stimulus presentation and the spontaneous
+    activity period. By setting `, defaults to 300 (optional)
+    :return: either `resp_V4` and `resp_V1` arrays or `resp_V4`, `resp_V1`, and `cond_labels` arrays
+    based on the conditions specified in the function parameters.
+    """
     data_dir = main_dir + f'data/chen/monkey_{monkey}/{date}/'
-
-
     if 'RF' not in condition_type:
         SNR_df = pd.read_csv(main_dir + f'data/chen/metadata/monkey_{monkey}/{monkey}_SNR_{date}_full.csv')
         SP = pd.read_csv(main_dir + f'data/chen/metadata/monkey_{monkey}/{monkey}_RS_{date}_removal_metadata.csv')
@@ -415,61 +656,94 @@ def get_resps(condition_type='SNR', date='090817', monkey='L', w_size = 25, stim
 
         sorted_array_to_edit = array_to_edit[:, np.argsort(within_elec_ID)]
         sorted_electrode_IDs = electrode_IDs[np.argsort(within_elec_ID)]
-        # remove both the noisy and spurious artifact electrodes
         elecs_to_delete = np.array([elec for elec in SP_SNR_electrodes.get(array, [])], dtype=int)
 
         array_to_edit = np.delete(sorted_array_to_edit, elecs_to_delete, axis=1)
-        # elec_names_to_edit2 = np.delete(elec_names_to_edit, elecs_to_delete)
-        electrode_IDs = np.delete(sorted_electrode_IDs, elecs_to_delete)
 
+        electrode_IDs = np.delete(sorted_electrode_IDs, elecs_to_delete)
         if 'V1' in cortical_area:
-            clean_array = get_clean_array(array_to_edit, condition_type, date, monkey, 
-                                          w_size, stim_on, stim_off,
-                                          bin_function=bin_function, shuffle=False, get_RF_labels=False, raw_resp=raw_resp,spont_stim_off=spont_stim_off)
+            clean_array = get_clean_array(array_to_edit, condition_type, date, monkey, w_size, stim_on, stim_off, bin_function=bin_function, shuffle=False, get_RF_labels=False, raw_resp=raw_resp,spont_stim_off=spont_stim_off)
             uncat_resp_v1.append(clean_array)
-            # array_elec_v1.extend([(array, e) for e in elec_names_to_edit2])
-            # electrode_IDs_v1.extend(electrode_IDs)
             del array_to_edit
         elif 'V4' in cortical_area:
-            clean_array = get_clean_array(array_to_edit, condition_type, date, monkey, 
-                                          w_size, stim_on, stim_off, bin_function=bin_function,
-                                          shuffle=shuffle, get_RF_labels=get_RF_labels, raw_resp=raw_resp, spont_stim_off=spont_stim_off)
+            clean_array = get_clean_array(array_to_edit, condition_type, date, monkey,  w_size, stim_on, stim_off, bin_function=bin_function, shuffle=shuffle, get_RF_labels=get_RF_labels, raw_resp=raw_resp, spont_stim_off=spont_stim_off)
             if get_RF_labels is True:
                 uncat_resp_v4.append(clean_array[0])
                 cond_labels = clean_array[1]
             else:
                 uncat_resp_v4.append(clean_array)
             del array_to_edit
-            # array_elec_v4.extend([(array, e) for e in elec_names_to_edit2])
-            # electrode_IDs_v4.extend(electrode_IDs)
 
-        #print('array', array, cortical_area, np.shape(clean_array))
-
-    
     resp_V1 = np.concatenate(uncat_resp_v1, axis=1)
     resp_V4 = np.concatenate(uncat_resp_v4, axis=1)
 
-    
-    
     if get_RF_labels is True:
         return resp_V4, resp_V1, cond_labels
     return resp_V4, resp_V1
 
 
-def get_clean_array(resp_array, condition_type='SNR', date='090817', monkey='L', w_size = 25, stim_on=0, stim_off=400, 
-                    bin_function=binning_with_sum, shuffle=False, get_RF_labels=False, raw_resp=False, spont_stim_off=200):
+def get_clean_array(resp_array, condition_type='SNR', date='090817', monkey='L', w_size = 25, stim_on=0, stim_off=400, bin_function=binning_with_sum, shuffle=False, get_RF_labels=False, raw_resp=False, spont_stim_off=200):
+    """
+    This Python function takes in response data and parameters to clean and process the data based on
+    different conditions such as signal-to-noise ratio (SNR), resting state (RS), and receptive field
+    (RF).
+    
+    :param resp_array: `resp_array` is the input array containing response data. The function
+    `get_clean_array` processes this array based on the specified conditions and parameters to return a
+    cleaned and processed version of the data. The function handles different types of conditions such
+    as SNR, RS, RF, and their variations,
+    :param condition_type: The `condition_type` parameter in the `get_clean_array` function determines
+    the type of data processing to be applied to the input `resp_array`. The function supports different
+    condition types for processing the data, such as 'SNR', 'SNR_spont', 'RS', 'RS_open',, defaults to
+    SNR (optional)
+    :param date: The `date` parameter in the `get_clean_array` function is used to specify the date for
+    data processing. It is a string parameter that represents the date in a specific format, such as
+    '090817' in the function call, defaults to 090817 (optional)
+    :param monkey: The `monkey` parameter in the `get_clean_array` function is used to specify the
+    monkey from which the response data is collected. It is a string parameter that can take values like
+    'L' or 'R' to indicate the left or right monkey, for example, defaults to L (optional)
+    :param w_size: The `w_size` parameter in the `get_clean_array` function represents the window size
+    used for binning the response data. It is an integer value that determines the size of the window
+    for aggregating or summarizing the responses within each window, defaults to 25 (optional)
+    :param stim_on: The `stim_on` parameter in the `get_clean_array` function represents the time point
+    when the stimulus starts in the experiment. It is used in the calculation of responses based on
+    different conditions such as SNR (Signal-to-Noise Ratio) or RF (Receptive Field). The value of `,
+    defaults to 0 (optional)
+    :param stim_off: The `stim_off` parameter in the `get_clean_array` function represents the time
+    point at which the stimulus ends during data processing. It is used in various conditions like 'SNR'
+    and 'RF' to determine the duration of the stimulus presentation, defaults to 400 (optional)
+    :param bin_function: The `bin_function` parameter in the `get_clean_array` function is used to
+    specify the function that will be applied to bin the response array data. This function will take
+    the response array and window size as input parameters and return the binned data. The function can
+    be customized based on the specific
+    :param shuffle: The `shuffle` parameter in the `get_clean_array` function is a boolean flag that
+    determines whether the data should be shuffled or not. If `shuffle` is set to `True`, the data will
+    be shuffled before processing. If `shuffle` is set to `False`, the data will not, defaults to False
+    (optional)
+    :param get_RF_labels: The `get_RF_labels` parameter is a boolean flag that determines whether the
+    function should return both the `sum_binned` array and the `binned_labels` array when set to `True`.
+    If `get_RF_labels` is `True`, the function will return both arrays; otherwise, it, defaults to False
+    (optional)
+    :param raw_resp: The `raw_resp` parameter in the `get_clean_array` function is a boolean flag that
+    specifies whether to use raw response data or not. If `raw_resp` is set to `True`, the function will
+    use raw response data in the calculations. If `raw_resp` is set to `, defaults to False (optional)
+    :param spont_stim_off: The `spont_stim_off` parameter in the `get_clean_array` function is used to
+    specify the time point at which the spontaneous stimulus ends. This parameter is used in the
+    'SNR_spont' and 'RF_spont' conditions to determine the duration of the spontaneous stimulus period,
+    defaults to 200 (optional)
+    :return: either `sum_binned` or a tuple containing `sum_binned` and `binned_labels` based on the
+    conditions specified in the function.
+    """
 
     if condition_type == 'SNR_spont':
-        sum_binned = isolate_norm_spont(resp_array=resp_array, 
-                                           bin_function=bin_function, 
-                                           window_size=w_size, date=date, 
-                                           monkey=monkey, shuffle=shuffle, raw_resp=raw_resp, spont_stim_off=spont_stim_off)
+        sum_binned = isolate_norm_spont(resp_array=resp_array, bin_function=bin_function, window_size=w_size, date=date, 
+                                        monkey=monkey, shuffle=shuffle, raw_resp=raw_resp, spont_stim_off=spont_stim_off)
     elif condition_type == 'SNR':
         sum_binned = isolate_norm_resps(resp_array, stim_on=stim_on, 
-                                           stim_off=stim_off, 
-                                           bin_function=bin_function, 
-                                           window_size=w_size, date=date, 
-                                           monkey=monkey, shuffle=shuffle, raw_resp=raw_resp) 
+                                        stim_off=stim_off, 
+                                        bin_function=bin_function, 
+                                        window_size=w_size, date=date, 
+                                        monkey=monkey, shuffle=shuffle, raw_resp=raw_resp) 
     elif condition_type == 'RS':
         if bin_function is not None:
             sum_binned = bin_function(resp_array, window_size=w_size)
@@ -487,13 +761,13 @@ def get_clean_array(resp_array, condition_type='SNR', date='090817', monkey='L',
 
     elif condition_type == 'RF':
         sum_binned, binned_labels = isolate_norm_resps_RF(resp_array, stim_on=stim_on, stim_off=stim_off,
-                                                          bin_function=bin_function, window_size=w_size,
-                                                          date=date, monkey=monkey, raw_resp=raw_resp)
+                                                        bin_function=bin_function, window_size=w_size,
+                                                        date=date, monkey=monkey, raw_resp=raw_resp)
     
     elif condition_type == 'RF_spont':
         sum_binned, binned_labels = isolate_norm_spont_RF(resp_array, stim_on=stim_on, stim_off=stim_off,
-                                                          bin_function=bin_function, window_size=w_size,
-                                                          date=date, monkey=monkey, raw_resp=raw_resp,spont_stim_off=spont_stim_off)
+                                                        bin_function=bin_function, window_size=w_size,
+                                                        date=date, monkey=monkey, raw_resp=raw_resp,spont_stim_off=spont_stim_off)
 
     del resp_array
 
@@ -503,6 +777,16 @@ def get_clean_array(resp_array, condition_type='SNR', date='090817', monkey='L',
     return sum_binned
 
 def get_get_condition_type(condition_type):
+    """
+    The function `get_get_condition_type` returns a modified condition type based on specific criteria.
+    
+    :param condition_type: The function `get_get_condition_type` takes a `condition_type` as input and
+    returns a modified version of it based on certain conditions
+    :return: The function `get_get_condition_type` returns the value of the variable
+    `get_condition_type`, which is determined based on the input `condition_type`. If the input contains
+    both 'RF' and 'spont', it returns 'RF_spont'. If the input contains only 'RF', it returns 'RF'.
+    Otherwise, it returns the original `condition_type`.
+    """
     if 'RF' in condition_type and 'spont' in condition_type:
         get_condition_type='RF_spont'
     elif 'RF' in condition_type:
