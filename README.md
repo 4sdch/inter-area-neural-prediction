@@ -1,6 +1,6 @@
 # **Inter-Area Neural Prediction**
 
-This repository contains code for analyzing inter-area neural communication via Ridge Regression within the visual cortex by using one area to predict the other). Each Jupyter notebook focuses on a specific aspect of the analysis and can be run independently. Inter-area prediction is done across different areas (V1 predicting V4 in macaque or cortical layer 4 (L4) predicting layer 2/3 (L2/3) in moise) across different stimulus types and recording techniques and in the absence of any stimuli. 
+This repository contains code for analyzing visual inter-area neural communication using Ridge Regression. Each Jupyter notebook focuses on a specific aspect of the inter-areal prediction analysis and can be run independently. Inter-area prediction is done across different areas (V1 predicting V4 in macaque or cortical layer 4 (L4) predicting layer 2/3 (L2/3) in moise) across different stimulus types and recording techniques and in the absence of any stimuli. 
 
 ## **Data Acquisition**
 
