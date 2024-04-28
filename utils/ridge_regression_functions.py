@@ -4,8 +4,8 @@ from scipy import stats
 import copy
 
 
-main_dir = '/Users/diannahidalgo/Documents/thesis_shenanigans/inter_areal_predictability/'
-func_dir = '/Users/diannahidalgo/Documents/thesis_shenanigans/aim2_project/inter_areal_predictability/utils/'
+main_dir = ''
+func_dir = main_dir + 'utils/'
 
 import sys
 sys.path.insert(0,func_dir)
@@ -37,7 +37,7 @@ def pearsonr2(a, b):
             return np.nan
     return st.pearsonr(a, b)[0]
 
-def worker_function(X, y, alpha, train_idc, test_idc, frames_reduced=None, control_shuffle=False):
+def worker_function(X, y, alpha, train_idc, test_idc, count, n_splits=10, frames_reduced=None, control_shuffle=False):
     """Worker function for parallel computation of Ridge regression.
 
     Parameters:
@@ -56,13 +56,26 @@ def worker_function(X, y, alpha, train_idc, test_idc, frames_reduced=None, contr
         #Reduces the number of frames in the training set for time series data 
         # to avoid correlation spillover between the end of the training sample 
         # and the beginning of the validation sample
-        train_idc_reduced_x = copy.deepcopy(train_idc[frames_reduced:-frames_reduced])
-        train_idc_reduced_y = train_idc[frames_reduced:-frames_reduced]
-        test_idc_x = copy.deepcopy(test_idc)
-        test_idc_y = copy.deepcopy(test_idc)
+        beginning_index = test_idc[0]
+        # print(f'len of training:{len(train_idc)}, len of testing:{len(test_idc)}')
+        if count == 0:
+            train_idc_reduced_x = copy.deepcopy(train_idc[frames_reduced:])
+            train_idc_reduced_y = train_idc[frames_reduced:]
+            # print(count, f'train_idc[{frames_reduced}:]')
+        elif count == n_splits -1:
+            train_idc_reduced_x = copy.deepcopy(train_idc[:beginning_index - frames_reduced])
+            train_idc_reduced_y = train_idc[:beginning_index - frames_reduced]
+            # print(count, f'train_idc[:{beginning_index - frames_reduced}]')
+        else:
+            train_idc_reduced_x = np.delete(train_idc, np.arange(beginning_index - frames_reduced, beginning_index + frames_reduced, 1))
+            train_idc_reduced_y = np.delete(train_idc, np.arange(beginning_index - frames_reduced, beginning_index + frames_reduced, 1))
+            # print(count, f'frames deleted: np.arange({beginning_index - frames_reduced}, {beginning_index + frames_reduced}, 1)')
     else:
         train_idc_reduced_x = train_idc.copy()
         train_idc_reduced_y = train_idc.copy()  
+    
+    test_idc_x = copy.deepcopy(test_idc)
+    test_idc_y = copy.deepcopy(test_idc)
     
     if control_shuffle is True:
         np.random.shuffle(train_idc_reduced_x)
@@ -109,6 +122,7 @@ def get_predictions_evars_parallel(layer_used, layer_to_predict, alpha, n_splits
         tuple: Tuple containing predicted values and explained variances.
     """
     y = layer_to_predict
+    # print(y.shape)
     if standarize_X is True:
         scaler = StandardScaler()
         X = scaler.fit_transform(layer_used)
@@ -116,6 +130,7 @@ def get_predictions_evars_parallel(layer_used, layer_to_predict, alpha, n_splits
         X=layer_used     
     if verbose == 1:
         print('dataset shape', X.shape, y.shape)
+    
     # Perform K-fold cross-validation
     kf = KFold(n_splits=n_splits, shuffle=False)
     # If target data is 1D, add an axis
@@ -126,7 +141,7 @@ def get_predictions_evars_parallel(layer_used, layer_to_predict, alpha, n_splits
     all_coefs = np.zeros([n_splits, y.shape[1], X.shape[1]])
     
     # Parallel execution of worker function for each fold
-    results = Parallel(n_jobs=-1)(delayed(worker_function)(X, y, alpha, train_idc, test_idc, frames_reduced, control_shuffle=control_shuffle) for train_idc, test_idc in kf.split(X))
+    results = Parallel(n_jobs=-1)(delayed(worker_function)(X, y, alpha, train_idc, test_idc, count, n_splits, frames_reduced, control_shuffle=control_shuffle) for count, (train_idc, test_idc) in enumerate(kf.split(X)))
     for t, (ypred, test_idc, coef, split_evar) in enumerate(results):
         y_preds.append(ypred)
         f_indices.append(test_idc)

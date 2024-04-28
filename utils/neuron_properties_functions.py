@@ -1,22 +1,19 @@
 # Description: This file contains functions for analyzing neural data, specifically for mouse and monkey datasets
-
-main_dir = '/Users/diannahidalgo/Documents/thesis_shenanigans/aim2_project/inter_areal_predictability/'
+from joblib import Parallel, delayed
+import numpy as np
+import copy
+import time
+import scipy
+from scipy import stats
+main_dir = ''
 func_dir = main_dir + 'utils/'
 
 import sys
 sys.path.insert(0,func_dir)
-
-main_dir = '/Users/diannahidalgo/Documents/thesis_shenanigans/aim2_project/'
-
-
-import mouse_data_functions as cs
-import numpy as np
-from joblib import Parallel, delayed
-from scipy import stats
 from macaque_data_functions import get_img_resp_avg_sem, get_resps, get_get_condition_type
-import scipy
-from ridge_regression_functions import get_best_alpha_evars
-import time
+import mouse_data_functions as cs
+from ridge_regression_functions import get_best_alpha_evars,get_predictions_evars_parallel
+
 
 def create_empty_mouse_stats_dict(main_dir):
     """
@@ -198,8 +195,54 @@ def get_split_half_r_all_mice(main_dir, mouse_stats, remove_pcs=False):
             mouse_stats[dataset_type][mouse]['L23']['split_half_r'+ rem_pc]=get_split_half_r_mouse(istim, resp_L23)
             mouse_stats[dataset_type][mouse]['L4']['split_half_r'+ rem_pc]=get_split_half_r_mouse(istim, resp_L4)
 
+def extract_mouse_name(input_string):
+    index_of_MP = input_string.find('MP')
+    return input_string[index_of_MP:index_of_MP + 5] if index_of_MP != -1 and index_of_MP + 5 <= len(input_string) else None
+
+def store_mouse_alphas(main_dir, mouse_stats, activity_type='resp',n_splits=5, frames_to_reduce=5, sample_size=500, verbose=False):
+    alpha_unique_options = [1e1,5e1,1e2,5e2,1e3,5e3,1e4,5e4,1e5,5e5,1e6,5e6,1e7]
+    area = 'L23'
+    area2='L4'
+    dataset_types=['ori32','natimg32']
+    
+    spont_con = ''
+    if activity_type =='spont':
+        spont_con = '_spont'
+    
+    #get alpha per mouse 
+    if 'mouse_alphas' not in list(mouse_stats.keys()):
+        mouse_stats['mouse_alphas']={sample_size:{}}
+        mouse_alphas = {sample_size:{}}
+    else:
+        mouse_alphas = mouse_stats['mouse_alphas']
+        if sample_size not in list(mouse_alphas.keys()):
+            mouse_alphas[sample_size] = {}
+    for dataset_type in dataset_types:
+        mt = cs.mt_retriever(main_dir, dataset_type=dataset_type) #retrieves neural activity of a certain dataset type stored in data
+        for mouse in mouse_stats[dataset_type + spont_con]:
+            if extract_mouse_name(mouse) in list(mouse_alphas[sample_size].keys()):
+                if verbose:
+                    print(f'alpha already stored for {extract_mouse_name(mouse)} in dataset_type: {mouse_alphas[sample_size][extract_mouse_name(mouse)]["dataset_type_used"]}')
+            else:
+                resp_L1, resp_L23, resp_L2, resp_L3, resp_L4 = mt.retrieve_layer_activity(activity_type, mouse)
+                if resp_L1.shape[0]<1000:
+                    # there are some gray screen activity datasets that are too small to fit
+                    continue      
+                resp_L23 = resp_L23[:sample_size]
+                resp_L4 = resp_L4[:sample_size]
+                alpha, evars = get_best_alpha_evars(resp_L4, resp_L23, n_splits=n_splits, 
+                                                    frames_reduced=frames_to_reduce, 
+                                                    alphas=alpha_unique_options)
+                alpha2, evars2 = get_best_alpha_evars(resp_L23, resp_L4, n_splits=n_splits, 
+                                                    frames_reduced=frames_to_reduce, 
+                                                    alphas=alpha_unique_options)
+                mouse_alphas[sample_size][(extract_mouse_name(mouse))]={area:alpha, area2:alpha2, 'dataset_type_used':dataset_type + spont_con}
+                if verbose:
+                    print(f'alpha for {mouse} {activity_type} calculated and stored. Will be used in other datasets of the same mouse')
+    mouse_stats['mouse_alphas'] = mouse_alphas
+
 def get_evars_all_mice(main_dir, mouse_stats, activity_type='resp',n_splits=10, frames_to_reduce=5,
-                        control_shuffle=False, remove_pcs=False):
+                        control_shuffle=False, remove_pcs=False,sample_size=500):
     """
     Compute explained variance for all mice.
 
@@ -216,7 +259,6 @@ def get_evars_all_mice(main_dir, mouse_stats, activity_type='resp',n_splits=10, 
     - None
     """
     start_time = time.time()
-    alpha_unique_options = [5e3,1e4,5e4,1e5,5e5,1e6,5e6,1e7]
     area = 'L23'
     area2='L4'
     dataset_types=['ori32','natimg32']
@@ -225,30 +267,33 @@ def get_evars_all_mice(main_dir, mouse_stats, activity_type='resp',n_splits=10, 
     spont_con = ''
     if control_shuffle is True:
         control_con = '_null'
-    if remove_pc is True:
+    if remove_pcs is True:
         rem_pc = '_removed_32_pcs'
     if activity_type =='spont':
         spont_con = '_spont'
+    
     for dataset_type in dataset_types:
         mt = cs.mt_retriever(main_dir, dataset_type=dataset_type) #retrieves neural activity stored in data
-        mouse_names = mt.filenames
-        for mouse in mouse_names:
+        for mouse in mouse_stats[dataset_type + spont_con]:
+            
+            alpha = mouse_stats['mouse_alphas'][sample_size][(extract_mouse_name(mouse))][area]
+            alpha2 = mouse_stats['mouse_alphas'][sample_size][(extract_mouse_name(mouse))][area2]
             
             resp_L1, resp_L23, resp_L2, resp_L3, resp_L4 = mt.retrieve_layer_activity(activity_type, mouse,removed_pc=remove_pcs)
             if resp_L1.shape[0]<1000:
                 # there are some gray screen activity datasets that are too small to fit
                 continue      
-            alpha, evars = get_best_alpha_evars(resp_L4, resp_L23, n_splits=n_splits, 
-                                                frames_reduced=frames_to_reduce, 
-                                                alphas=alpha_unique_options)
-            alpha2, evars2 = get_best_alpha_evars(resp_L23, resp_L4, n_splits=n_splits, 
-                                                frames_reduced=frames_to_reduce, 
-                                                alphas=alpha_unique_options)
-
+            if mouse_stats['mouse_alphas'][sample_size][(extract_mouse_name(mouse))]['dataset_type_used']==dataset_type + spont_con:
+                resp_L23=resp_L23[sample_size:]
+                resp_L4=resp_L4[sample_size:]
+            _, evars = get_predictions_evars_parallel(resp_L4, resp_L23, alpha=alpha,n_splits=n_splits, 
+                                                frames_reduced=frames_to_reduce, control_shuffle=control_shuffle,
+                                                )
+            _, evars2 = get_predictions_evars_parallel(resp_L23, resp_L4, alpha=alpha2, n_splits=n_splits, 
+                                                frames_reduced=frames_to_reduce,control_shuffle=control_shuffle,
+                                                )
             mouse_stats[dataset_type + spont_con][mouse][area]['evars' + control_con + rem_pc]=evars
             mouse_stats[dataset_type + spont_con][mouse][area2]['evars' + control_con + rem_pc]=evars2
-            mouse_stats[dataset_type + spont_con][mouse][area]['alpha' + control_con + rem_pc]=alpha
-            mouse_stats[dataset_type + spont_con][mouse][area2]['alpha' + control_con + rem_pc]=alpha2
         print(dataset_type, 'done')
     end_time = time.time()
     elapsed_time = (end_time - start_time)/60
@@ -256,7 +301,7 @@ def get_evars_all_mice(main_dir, mouse_stats, activity_type='resp',n_splits=10, 
 
 
 condition_types =['SNR', 'SNR_spont', 'RS', 'RS_open', 'RS_closed', 
-                  'RF_thin', 'RF_large', 'RF_thin_spont', 'RF_large_spont']
+                'RF_thin', 'RF_large', 'RF_thin_spont', 'RF_large_spont']
 def get_dates(condition_type):
     if 'SNR' in condition_type or 'RS' in condition_type:
         return ['090817', '100817', '250717']
@@ -317,7 +362,8 @@ def get_split_half_shape_monkey_RF_seed(resp_array, cond_labels, date, condition
     
     x = np.concatenate(all_x, axis=0)
     y = np.concatenate(all_y, axis=0)
-
+    
+    # We now have x and y being shaped [40 timepoints_per_epoch * 4 labels, n_neurons]
     correlations = np.array([stats.pearsonr(x[:,neuron], y[:,neuron])[0] for neuron in range(x.shape[1])])
     return correlations*2/(1+correlations)
 
@@ -330,13 +376,13 @@ def get_split_half_r_monkey_RF(resp_array, cond_labels, date, condition_type, n_
 
 #depending on the dataset type, there are different times of autocorrelation to mitigate
 all_frames_reduced = {'SNR': 5, 'SNR_spont': 5, 'RS': 20, 
-                      'RS_open':20, 'RS_closed': 20, 
-                      'RF_thin':25, 'RF_large':25, 'RF_thin_spont':25, 'RF_large_spont':25}
+                    'RS_open':20, 'RS_closed': 20, 
+                    'RF_thin':25, 'RF_large':25, 'RF_thin_spont':25, 'RF_large_spont':25}
 #different stimulus presentaion types have different durations
 all_ini_stim_offs = {'SNR': 400, 'SNR_spont': 300, 'RS': None,
-                      'RS_open':None, 'RS_closed': None, 
-                      'RF_thin':1000, 'RF_large':1000, 'RF_thin_spont':300, 
-                      'RF_large_spont':300}
+                    'RS_open':None, 'RS_closed': None, 
+                    'RF_thin':1000, 'RF_large':1000, 'RF_thin_spont':300, 
+                    'RF_large_spont':300}
 
 def get_split_half_r_monkey_all_dates(monkey_stats, w_size=25):
     """
@@ -378,7 +424,32 @@ def get_SNR_monkey(binned_resp, binned_spont):
     SNR = (MUA_max - baseline_avg) / baseline_std
     return SNR
 
-def get_SNR_monkey_all_dates(monkey_stats, w_size=1):
+def get_SNR_monkey_RF(binned_resp_, binned_spont_, cond_labels):
+
+    binned_labels = cond_labels[:,0,0]
+    resp_list, spont_list = [],[]
+    for cond_num in range(len(np.unique(binned_labels))):
+        stim_epochs = binned_resp_[np.argwhere(binned_labels==cond_num)[:, 0]]
+        stim_spont_epochs = binned_spont_[np.argwhere(binned_labels==cond_num)[:, 0]]
+        resp_list.append(np.mean(stim_epochs, axis=0))
+        spont_list.append(np.mean(stim_spont_epochs, axis=0))
+        
+ 
+    baseline_stack_avg = np.concatenate(spont_list, axis=0)
+    baseline_avg = np.mean(baseline_stack_avg, axis=0) #overall mean of all periods 
+    baseline_std = np.std(baseline_stack_avg, axis=0)
+    
+    MUA_avg = np.concatenate(resp_list, axis=0) #instead of averaging all directions, concatenate them all into a 4 second average
+    window = 20  # hard-coded
+    mask = np.ones((window)) / window
+    MUA_sm = scipy.ndimage.convolve1d(MUA_avg, mask, axis=0)
+    MUA_max = np.max(MUA_sm, axis=0)
+    
+    # Calculate channel Signal to Noise Ratio (SNR)
+    SNR = (MUA_max - baseline_avg) / baseline_std
+    return SNR
+
+def get_SNR_monkey_all_dates(monkey_stats, w_size=1, specific_dataset_types = ['SNR','RF_large','RF_thin']):
     """
     Compute SNR for all monkey dates.
 
@@ -391,18 +462,30 @@ def get_SNR_monkey_all_dates(monkey_stats, w_size=1):
     """
     area='V4'
     area2='V1'
-    for dataset_type in ['SNR','RF_large','RF_thin']:
+    for dataset_type in specific_dataset_types:
         dates = get_dates(dataset_type)
         for date in dates:
-            resp_V4, resp_V1 =get_resps(condition_type=get_get_condition_type(dataset_type), date=date, w_size=w_size, stim_off=all_ini_stim_offs[dataset_type], raw_resp=True)
-            spont_V4, spont_V1 =get_resps(condition_type=get_get_condition_type(dataset_type)+'_spont', date=date, w_size=w_size, stim_off=all_ini_stim_offs[dataset_type], raw_resp=True)
-            monkey_stats[dataset_type][date][area]['SNR_meanspont']=get_SNR_monkey(resp_V4, spont_V4)
-            monkey_stats[dataset_type][date][area2]['SNR_meanspont']=get_SNR_monkey(resp_V1, spont_V1)
+            if 'RF' in dataset_type:
+                resp_V4, resp_V1, cond_labels =get_resps(condition_type=get_get_condition_type(dataset_type), date=date, w_size=w_size, 
+                                                        stim_off=all_ini_stim_offs[dataset_type], raw_resp=True,return_binned=True, get_RF_labels=True)
+                spont_V4, spont_V1 =get_resps(condition_type=get_get_condition_type(dataset_type)+'_spont', date=date, w_size=w_size, 
+                                            stim_off=all_ini_stim_offs[dataset_type], raw_resp=True, return_binned=True)
+                monkey_stats[dataset_type][date][area]['SNR_meanspont']=get_SNR_monkey_RF(resp_V4, spont_V4, cond_labels)
+                monkey_stats[dataset_type][date][area2]['SNR_meanspont']=get_SNR_monkey_RF(resp_V1, spont_V1, cond_labels)
+            else:
+                resp_V4, resp_V1 =get_resps(condition_type=get_get_condition_type(dataset_type), date=date, w_size=w_size, 
+                                            stim_off=all_ini_stim_offs[dataset_type], raw_resp=True,return_binned=True)
+                spont_V4, spont_V1 =get_resps(condition_type=get_get_condition_type(dataset_type)+'_spont', date=date, 
+                                            w_size=w_size, stim_off=all_ini_stim_offs[dataset_type], raw_resp=True,return_binned=True)
+                monkey_stats[dataset_type][date][area]['SNR_meanspont']=get_SNR_monkey(resp_V4, spont_V4)
+                monkey_stats[dataset_type][date][area2]['SNR_meanspont']=get_SNR_monkey(resp_V1, spont_V1)
 
 def get_max_corr_vals_monkey_all_dates(monkey_stats, w_size=25):
     area='V4'
     area2='V1'
     for dataset_type in monkey_stats:
+        if 'monkey' in dataset_type:
+            continue
         for date in monkey_stats[dataset_type]:
             resp_V4, resp_V1 =get_resps(condition_type=get_get_condition_type(dataset_type), date=date, w_size=w_size, stim_off=all_ini_stim_offs[dataset_type])
             connx_matrix = np.corrcoef(resp_V4.T, resp_V1.T)
@@ -423,7 +506,7 @@ def get_1_vs_all_scsb_monkey_1trial(trial_no, binned_epochs):
 
     return correlations
 
-from joblib import Parallel, delayed
+
 
 def get_1_vs_rest_r_monkey(binned_epochs):
     n_trials = len(binned_epochs)
@@ -460,7 +543,7 @@ def get_min_trials(binned_labels):
         trial_nos.append(len(loc))
     return min(trial_nos)
 
-from macaque_data_functions import get_img_resp_avg_sem
+
 def get_1_vs_rest_r_monkey_RF(resp_array, cond_labels, date, condition_type, trial_avg=False):
     scsbs = []
 
@@ -475,7 +558,6 @@ def get_1_vs_rest_r_monkey_RF(resp_array, cond_labels, date, condition_type, tri
     
     return np.mean(np.array(scsbs), axis=0)
 
-from macaque_data_functions import get_get_condition_type, get_resps, get_img_resp_avg_sem
 def get_one_vs_rest_r_monkey_all_dates(monkey_stats, w_size=25):
     """
     Compute 1 vs. rest reliability for all monkey dates.
@@ -504,8 +586,42 @@ def get_one_vs_rest_r_monkey_all_dates(monkey_stats, w_size=25):
                 binned_epochs = get_img_resp_avg_sem(resp_V4, date, condition_type=dataset_type, get_chunks=True) 
                 monkey_stats[dataset_type][date][area2]['1_vs_rest_r']=get_1_vs_rest_r_monkey(binned_epochs)
 
+def store_macaque_alphas(main_dir, monkey_stats,n_splits=5, w_size=25, 
+                        sample_size=500, verbose=False, condition_type_used='RS', date_used = '090817'):
+    alpha_unique_options = [1e1,5e1,1e2,5e2,1e3,5e3,1e4,5e4,1e5,5e5,1e6,5e6,1e7]
+    area='V4'
+    area2='V1'
+    
+    #get alpha per mouse 
+    if 'monkey_alphas' not in list(monkey_stats.keys()):
+        monkey_stats['monkey_alphas']={sample_size:{}}
+        monkey_alphas = {sample_size:{}}
+    else:
+        monkey_alphas = monkey_stats['monkey_alphas']
+        if sample_size not in list(monkey_alphas.keys()):
+            monkey_alphas[sample_size] = {}
+    
+    if 'V4' in list(monkey_alphas[sample_size].keys()):
+        if verbose:
+            print('alpha already stored')
+    else:
+        get_condition_type = get_get_condition_type(condition_type_used)
+        resp_V4, resp_V1 =get_resps(condition_type=get_condition_type, date=date_used, 
+                                        w_size=w_size,stim_off=all_ini_stim_offs[condition_type_used])
+        resp_V4=resp_V4[:sample_size]
+        resp_V1=resp_V1[:sample_size]
+        
+        alpha, evars = get_best_alpha_evars(resp_V1, resp_V4, n_splits=n_splits, alphas=alpha_unique_options,
+                                                frames_reduced=all_frames_reduced[condition_type_used])
+        alpha2, evars2 = get_best_alpha_evars(resp_V4, resp_V1, n_splits=n_splits, alphas=alpha_unique_options,
+                                                frames_reduced=all_frames_reduced[condition_type_used])
+        
+        monkey_alphas[sample_size]= {area:alpha, area2:alpha2, 'condition_type_used':condition_type_used, 'date_used':date_used}
+        if verbose:
+            print(f'alpha for macaque calculated and stored. Will be used in other datasets of the same monkey')
+    monkey_stats['monkey_alphas'] = monkey_alphas
 
-def get_evar_monkey_all_dates(monkey_stats, w_size=25,n_splits=10, control_shuffle=False):
+def get_evar_monkey_all_dates(monkey_stats, w_size=25,n_splits=10, control_shuffle=False, frame_size=500):
     """
     Compute explained variance for all monkey dates.
 
@@ -517,27 +633,34 @@ def get_evar_monkey_all_dates(monkey_stats, w_size=25,n_splits=10, control_shuff
     - None
     """
     start_time = time.time()
-    alpha_monkeys = [100, 500.0, 1000.0, 5000.0, 10000.0, 50000.0, 100000.0]
     area='V4'
     area2='V1'
+    
+    monkey_alphas=monkey_stats['monkey_alphas'][frame_size]
+    alpha = monkey_alphas[area]
+    alpha2=monkey_alphas[area2]    
     
     if control_shuffle is True:
         control_con = '_null'
     else: 
         control_con = ''
+    
     for condition_type in monkey_stats:
+        if 'monkey' in condition_type:
+            continue
         for date in monkey_stats[condition_type]:
             get_condition_type = get_get_condition_type(condition_type)
             resp_V4, resp_V1 =get_resps(condition_type=get_condition_type, date=date, 
                                         w_size=w_size,stim_off=all_ini_stim_offs[condition_type])
-            alpha, evars = get_best_alpha_evars(resp_V1, resp_V4, n_splits=n_splits, alphas=alpha_monkeys,
+            if condition_type ==monkey_alphas['condition_type_used'] and date==monkey_alphas['date_used']:
+                resp_V4=resp_V4[frame_size:]
+                resp_V1=resp_V1[frame_size:]
+            _, evars = get_predictions_evars_parallel(resp_V1, resp_V4, n_splits=n_splits, alpha=alpha,
                                                 frames_reduced=all_frames_reduced[condition_type], control_shuffle=control_shuffle)
-            alpha2, evars2 = get_best_alpha_evars(resp_V4, resp_V1, n_splits=n_splits, 
+            _, evars2 = get_predictions_evars_parallel(resp_V4, resp_V1, n_splits=n_splits, alpha=alpha2,
                                                 frames_reduced=all_frames_reduced[condition_type], control_shuffle=control_shuffle)
             monkey_stats[condition_type][date][area]['evars' + control_con]=evars
             monkey_stats[condition_type][date][area2]['evars' + control_con]=evars2
-            monkey_stats[condition_type][date][area]['alpha' + control_con]=alpha
-            monkey_stats[condition_type][date][area2]['alpha' + control_con]=alpha2
             print(date,'done')
         print(condition_type, 'done')
     end_time = time.time()

@@ -4,7 +4,14 @@ import scipy.stats as stats
 from itertools import combinations
 from statsmodels.stats.multitest import multipletests
 
-def perm_test(group1, group2):
+def calculate_difference(group1, group2, central_tendency = 'median'):
+    # Observed test statistic (e.g., difference in means)
+    if central_tendency == 'mean':
+        observed_statistic = np.nanmean(group1) - np.nanmean(group2)
+    elif central_tendency =='median':
+        observed_statistic = np.nanmedian(group1) - np.nanmedian(group2)
+    return observed_statistic
+def perm_test(group1, group2, num_permutations = 10000, central_tendency = 'median', return_stats = False):
     """Permutation test for independent samples.
 
     This function computes the p-value for a two-sample permutation test
@@ -17,10 +24,7 @@ def perm_test(group1, group2):
     Returns:
         float: p-value for the permutation test.
     """
-    # Observed test statistic (e.g., difference in means)
-    observed_statistic = np.nanmean(group1) - np.nanmean(group2)
-    # Number of permutations to perform
-    num_permutations = 10000
+    observed_statistic= calculate_difference(group1, group2, central_tendency)
     # Create an array to store the permuted test statistics
     permuted_statistics = np.zeros(num_permutations)
     # Combine the data from both groups
@@ -35,14 +39,16 @@ def perm_test(group1, group2):
         permuted_group2 = combined_data[len(group1):]
         
         # Calculate the test statistic for this permutation
-        permuted_statistic = np.nanmean(permuted_group1) - np.nanmean(permuted_group2)
-        
+        permuted_statistic = calculate_difference(permuted_group1, permuted_group2, central_tendency)
         # Store the permuted test statistic
         permuted_statistics[i] = permuted_statistic
 
     # Calculate the p-value by comparing the observed statistic to the permuted distribution
     p_value = (np.abs(permuted_statistics) >= np.abs(observed_statistic)).mean()
 
+    if return_stats is True:
+        return permuted_statistics, observed_statistic, p_value
+    
     return p_value
 
 def perm_test_paired(group1, group2):
@@ -59,6 +65,7 @@ def perm_test_paired(group1, group2):
         float: p-value for the paired permutation test.
     """
     # Observed test statistic (e.g., difference in means)
+
     observed_statistic = np.nanmean(group2-group1)
 
     # Number of permutations to perform
@@ -87,8 +94,8 @@ def perm_test_paired(group1, group2):
     return p_value
 
 # Function to perform hierarchical permutation test with animal bootstrapping
-def hierarchical_permutation_test(data, mouse_or_date, dependent_variable, neuron_property,perm_type='ind', num_permutations=1000):
-    observed_statistic = calculate_statistic(data, dependent_variable, neuron_property, perm_type)  # Replace with your actual calculation
+def hierarchical_permutation_test(data, mouse_or_date, dependent_variable, neuron_property,perm_type='ind', num_permutations=1000, central_tendency = 'median'):
+    observed_statistic = calculate_statistic(data, dependent_variable, neuron_property, perm_type, central_tendency=central_tendency)  # Replace with your actual calculation
     """Hierarchical permutation test with animal bootstrapping.
 
     This function performs a hierarchical permutation test with animal bootstrapping.
@@ -130,7 +137,7 @@ def hierarchical_permutation_test(data, mouse_or_date, dependent_variable, neuro
                 np.random.shuffle(animal_values)
                 bootstrapped_data.loc[bootstrapped_data[mouse_or_date] == animal, neuron_property] = animal_values
             # Calculate the permuted statistic
-            permuted_statistic = calculate_statistic(bootstrapped_data, dependent_variable, neuron_property, perm_type=perm_type)
+            permuted_statistic = calculate_statistic(bootstrapped_data, dependent_variable, neuron_property, perm_type=perm_type, central_tendency=central_tendency)
         elif perm_type =='paired':
             permuted_statistic = calculate_statistic(bootstrapped_data, dependent_variable, neuron_property, perm_type=perm_type, paired_shuffle=True)
         # Store the permuted statistic
@@ -140,7 +147,8 @@ def hierarchical_permutation_test(data, mouse_or_date, dependent_variable, neuro
     return p_value
 
 
-def get_one_way_anova_pstats(df,variable1,variable1_order, neuron_property,perm_t=False, perm_type='ind'):
+
+def get_one_way_anova_pstats(df,variable1,variable1_order, neuron_property,perm_t=False, perm_type='ind', central_tendency='median'):
     """
     Perform one-way ANOVA and pairwise post-hoc tests between groups based on a given variable.
 
@@ -177,13 +185,12 @@ def get_one_way_anova_pstats(df,variable1,variable1_order, neuron_property,perm_
     p_val_names = []
 
     for group1, group2 in combinations(groups, 2):
-        group1_data = df_posthoc[df_posthoc[f'{variable1}'] == group1][neuron_property]
-        group2_data = df_posthoc[df_posthoc[f'{variable1}'] == group2][neuron_property]
-        
+        group1_data = df_posthoc[df_posthoc[f'{variable1}'] == group1][neuron_property].reset_index(drop=True)
+        group2_data = df_posthoc[df_posthoc[f'{variable1}'] == group2][neuron_property].reset_index(drop=True)
         if perm_type == 'paired':
             p_value = perm_test_paired(group1_data, group2_data)
         elif perm_t is True:
-            p_value = perm_test(group1_data, group2_data)
+            p_value = perm_test(group1_data, group2_data, central_tendency=central_tendency)
         else:
             _, p_value = stats.ttest_ind(group1_data, group2_data)
         p_values.append(p_value)
@@ -194,7 +201,7 @@ def get_one_way_anova_pstats(df,variable1,variable1_order, neuron_property,perm_
 
     return p_val_names, adjusted_p_values
 
-def get_oneway_anova_stars(df_, dependent_variable,dependent_variable_order, neuron_property, perm_t=True, perm_type='ind'):
+def get_oneway_anova_stars(df_, dependent_variable,dependent_variable_order, neuron_property, perm_t=True, perm_type='ind', central_tendency='median'):
     """
     Perform one-way ANOVA and generate significance stars for pairwise comparisons.
 
@@ -228,7 +235,7 @@ def get_oneway_anova_stars(df_, dependent_variable,dependent_variable_order, neu
     
     all_stars = []
     p_val_names, adjusted_p_values= get_one_way_anova_pstats(df_,dependent_variable,dependent_variable_order, 
-                                                            neuron_property,perm_t=perm_t, perm_type=perm_type)
+                                                            neuron_property,perm_t=perm_t, perm_type=perm_type, central_tendency=central_tendency)
     for name, p_value in zip(p_val_names, adjusted_p_values):
         if p_value <1e-3:
             stars = '***'
@@ -238,11 +245,12 @@ def get_oneway_anova_stars(df_, dependent_variable,dependent_variable_order, neu
             stars='*'
         else:
             stars='n.s.'
+            
         all_stars.append(stars)
     return p_val_names, all_stars
 
 # Example function for the statistic of interest
-def calculate_statistic(data, group, neuron_property, perm_type='ind', paired_shuffle=False):
+def calculate_statistic(data, group, neuron_property, perm_type='ind', paired_shuffle=False, central_tendency='median'):
     """Calculate the statistic of interest.
 
     This function calculates the statistic of interest based on the input data.
@@ -259,8 +267,12 @@ def calculate_statistic(data, group, neuron_property, perm_type='ind', paired_sh
     """
     groups = data[group].unique()
     if perm_type =='ind':
-        mean_group_a = data[data[group] == groups[0]][neuron_property].mean()
-        mean_group_b = data[data[group] == groups[1]][neuron_property].mean()
+        if central_tendency =='mean':
+            mean_group_a = data[data[group] == groups[0]][neuron_property].mean()
+            mean_group_b = data[data[group] == groups[1]][neuron_property].mean()
+        elif central_tendency == 'median':
+            mean_group_a = data[data[group] == groups[0]][neuron_property].median()
+            mean_group_b = data[data[group] == groups[1]][neuron_property].median()
         return mean_group_a - mean_group_b
     elif perm_type =='paired':
         if data[data[group] == groups[0]][neuron_property].size != data[data[group] == groups[1]][neuron_property].size:
@@ -275,7 +287,7 @@ def calculate_statistic(data, group, neuron_property, perm_type='ind', paired_sh
             return np.nanmean(pooled_differences)
         
 def get_t_test_stars(df_, dependent_variable, neuron_property, print_pval=False, 
-                    perm_t=True, perm_type='ind', hierarchical=False, num_permutations=1000, mouse_or_date='Mouse_Name'):
+                    perm_t=True, perm_type='ind', hierarchical=False, num_permutations=1000, mouse_or_date='Mouse_Name', central_tendency='median'):
     """Perform t-test and return significance stars.
 
     This function conducts a t-test between two groups defined by a dependent variable,
@@ -302,7 +314,8 @@ def get_t_test_stars(df_, dependent_variable, neuron_property, print_pval=False,
         p_value = hierarchical_permutation_test(df_,mouse_or_date=mouse_or_date, 
                                         dependent_variable=dependent_variable, 
                                         neuron_property=neuron_property,
-                                        perm_type=perm_type,num_permutations=num_permutations)
+                                        perm_type=perm_type,num_permutations=num_permutations,
+                                        central_tendency=central_tendency)
         
     elif perm_type=='paired':
         p_value = perm_test_paired(group_1, group_2)

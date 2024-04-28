@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import copy
 
-main_dir = '/Users/diannahidalgo/Documents/thesis_shenanigans/aim2_project/inter_areal_predictability/'
+main_dir = ''
 
 
 def get_epoch_times(resp_array, date, stim_on=0, stim_off=400, spont_stim_off =200, monkey='L'):
@@ -160,7 +160,7 @@ def bin_labels(data, window_size, **kwargs):
         binned_data[i] = np.median(window_data, axis=0)  # You can use a different aggregation function here
     return binned_data
 
-def isolate_norm_resps_RF(resp_array, date='260617', monkey='L', bin_function=None, stim_on=0, stim_off=1000, raw_resp=False, **kwargs):
+def isolate_norm_resps_RF(resp_array, date='260617', monkey='L', bin_function=None, stim_on=0, stim_off=1000, raw_resp=False, return_binned=False, **kwargs):
     """
     This function isolates responses for moving bars by removing gray screen presentation activity and
     optionally normalizes the responses.
@@ -207,12 +207,12 @@ def isolate_norm_resps_RF(resp_array, date='260617', monkey='L', bin_function=No
         binned_spont = true_spont
         binned_labels=cond_labels
 
-    
-
     if raw_resp is True:
-        #return binned_resp.reshape(-1, resp_array.shape[1]), binned_labels
-        #print('true resp shape', true_resp.shape)
-        return true_resp, cond_labels
+        if return_binned  is True:
+            return true_resp, cond_labels
+        else:
+            return binned_resp.reshape(-1, resp_array.shape[1]), binned_labels
+        
     else:
         norm_resp = binned_resp - np.mean(binned_spont, axis=1, keepdims=True)  
         norm_resp = norm_resp.reshape(-1, resp_array.shape[1])
@@ -221,7 +221,8 @@ def isolate_norm_resps_RF(resp_array, date='260617', monkey='L', bin_function=No
         # print(norm_resp.shape)
         return norm_resp, binned_labels
 
-def isolate_norm_spont_RF(resp_array, date='260617', monkey='L', bin_function=None, stim_on=0, stim_off=1000,raw_resp=False,spont_stim_off=300, **kwargs):
+def isolate_norm_spont_RF(resp_array, date='260617', monkey='L', bin_function=None, stim_on=0, stim_off=1000,raw_resp=False,
+                          spont_stim_off=300, return_binned=False, **kwargs):
     """
     This Python function isolates responses for gray screen activity by removing moving bars activity
     and optionally binning the data.
@@ -259,20 +260,27 @@ def isolate_norm_spont_RF(resp_array, date='260617', monkey='L', bin_function=No
     """
     ### removes the moving bars activity to only obtain isolated responses for gray screen activity 
     true_resp, true_spont, cond_labels = get_epoch_times_RF(resp_array, stim_on=stim_on, stim_off=stim_off, date=date, monkey=monkey, spont_stim_off=spont_stim_off)
-    if raw_resp is True:
-        return true_spont, cond_labels
+    
     if bin_function is not None:
         binned_spont = np.stack([bin_function(epoch_spont,**kwargs) for epoch_spont in true_spont])
         binned_labels = np.stack([bin_labels(epoch_label, **kwargs) for epoch_label in cond_labels])
     else:
         binned_spont = true_spont
         binned_labels=cond_labels
+    
+    if raw_resp is True:
+        if return_binned  is True:
+            return true_resp, cond_labels
+        else:
+            return binned_spont.reshape(-1, resp_array.shape[1]), cond_labels
         
     norm_spont = binned_spont.reshape(-1, resp_array.shape[1])
 
     return norm_spont, binned_labels
 
-def isolate_norm_resps(resp_array, date='250717', monkey='L', bin_function=None, stim_on=0, stim_off=400, shuffle=False, seed=None, raw_resp=False, **kwargs):
+def isolate_norm_resps(resp_array, date='250717', monkey='L', bin_function=None, stim_on=0, 
+                       stim_off=400, shuffle=False, seed=None, raw_resp=False, 
+                       return_binned=False, **kwargs):
     """
     This function isolates responses for checkerboard presentations by removing gray screen activity and
     optionally performs trial shuffling or normalization.
@@ -332,13 +340,18 @@ def isolate_norm_resps(resp_array, date='250717', monkey='L', bin_function=None,
         binned_spont = binned_spont[indices]
 
     if raw_resp is True:
-        return binned_resp.reshape(-1, resp_array.shape[1])
-    else:
-        norm_resp = binned_resp - np.mean(binned_spont, axis=1, keepdims=True)  
-        norm_resp = norm_resp.reshape(-1, resp_array.shape[1])
-        return norm_resp
+        if return_binned  is True:
+            return true_resp
+        else:
+            return binned_resp.reshape(-1, resp_array.shape[1])
+    
+    norm_resp = binned_resp - np.mean(binned_spont, axis=1, keepdims=True)  
+    norm_resp = norm_resp.reshape(-1, resp_array.shape[1])
+    return norm_resp
 
-def isolate_norm_spont(resp_array, date='250717', monkey='L', bin_function=None, shuffle=False, seed=None, raw_resp=False,spont_stim_off=300, **kwargs):
+def isolate_norm_spont(resp_array, date='250717', monkey='L', bin_function=None, shuffle=False, 
+                       seed=None, raw_resp=False,spont_stim_off=300, 
+                       return_binned=False,**kwargs):
     """
     This Python function isolates and normalizes spontaneous responses from an array of responses, with
     options for binning, shuffling, and reshaping the data.
@@ -383,7 +396,10 @@ def isolate_norm_spont(resp_array, date='250717', monkey='L', bin_function=None,
         binned_spont = true_spont
         
     if raw_resp is True:
-        return binned_spont.reshape(-1, resp_array.shape[1])
+        if return_binned is True:
+            return true_spont
+        else:
+            return binned_spont.reshape(-1, resp_array.shape[1])
     
     if shuffle is True:
         indices = np.arange(len(binned_spont)) 
@@ -542,7 +558,9 @@ def binning_with_sum(data, window_size, e=0,**kwargs):
     return binned_data
 
 
-def get_resps(condition_type='SNR', date='090817', monkey='L', w_size = 25, stim_on=0,  stim_off=400, shuffle=False, get_RF_labels=False, bin_function=binning_with_sum, keep_SNR_elecs=False, raw_resp=False, spont_stim_off=300):
+def get_resps(condition_type='SNR', date='090817', monkey='L', w_size = 25, stim_on=0,  stim_off=400, 
+            shuffle=False, get_RF_labels=False, bin_function=binning_with_sum, keep_SNR_elecs=False, 
+            raw_resp=False, spont_stim_off=300, return_binned=False):
     """
     This Python function retrieves neural response data based on specified conditions and electrode
     information for further analysis.
@@ -623,7 +641,6 @@ def get_resps(condition_type='SNR', date='090817', monkey='L', w_size = 25, stim
 
     all_arrays = np.arange(1,17)
     NSPidc = [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8]
-    data_dir = main_dir + f'data/chen/monkey_{monkey}/{date}/'
     
     if condition_type =='SNR_spont':
         array_condition_type = 'SNR'
@@ -662,11 +679,15 @@ def get_resps(condition_type='SNR', date='090817', monkey='L', w_size = 25, stim
 
         electrode_IDs = np.delete(sorted_electrode_IDs, elecs_to_delete)
         if 'V1' in cortical_area:
-            clean_array = get_clean_array(array_to_edit, condition_type, date, monkey, w_size, stim_on, stim_off, bin_function=bin_function, shuffle=False, get_RF_labels=False, raw_resp=raw_resp,spont_stim_off=spont_stim_off)
+            clean_array = get_clean_array(array_to_edit, condition_type, date, monkey, w_size, stim_on, stim_off, 
+                                        bin_function=bin_function, shuffle=False, get_RF_labels=False, raw_resp=raw_resp,
+                                        spont_stim_off=spont_stim_off, return_binned=return_binned)
             uncat_resp_v1.append(clean_array)
             del array_to_edit
         elif 'V4' in cortical_area:
-            clean_array = get_clean_array(array_to_edit, condition_type, date, monkey,  w_size, stim_on, stim_off, bin_function=bin_function, shuffle=shuffle, get_RF_labels=get_RF_labels, raw_resp=raw_resp, spont_stim_off=spont_stim_off)
+            clean_array = get_clean_array(array_to_edit, condition_type, date, monkey,  w_size, stim_on, stim_off, 
+                                        bin_function=bin_function, shuffle=shuffle, get_RF_labels=get_RF_labels, raw_resp=raw_resp, 
+                                        spont_stim_off=spont_stim_off, return_binned=return_binned)
             if get_RF_labels is True:
                 uncat_resp_v4.append(clean_array[0])
                 cond_labels = clean_array[1]
@@ -674,15 +695,21 @@ def get_resps(condition_type='SNR', date='090817', monkey='L', w_size = 25, stim
                 uncat_resp_v4.append(clean_array)
             del array_to_edit
 
-    resp_V1 = np.concatenate(uncat_resp_v1, axis=1)
-    resp_V4 = np.concatenate(uncat_resp_v4, axis=1)
+    if return_binned is True and raw_resp is True:
+        resp_V1 = np.concatenate(uncat_resp_v1, axis=2)
+        resp_V4 = np.concatenate(uncat_resp_v4, axis=2)
+    else:
+        resp_V1 = np.concatenate(uncat_resp_v1, axis=1)
+        resp_V4 = np.concatenate(uncat_resp_v4, axis=1)
 
     if get_RF_labels is True:
         return resp_V4, resp_V1, cond_labels
     return resp_V4, resp_V1
 
 
-def get_clean_array(resp_array, condition_type='SNR', date='090817', monkey='L', w_size = 25, stim_on=0, stim_off=400, bin_function=binning_with_sum, shuffle=False, get_RF_labels=False, raw_resp=False, spont_stim_off=200):
+def get_clean_array(resp_array, condition_type='SNR', date='090817', monkey='L', w_size = 25, stim_on=0, 
+                    stim_off=400, bin_function=binning_with_sum, shuffle=False, get_RF_labels=False, raw_resp=False, 
+                    spont_stim_off=200, return_binned=False):
     """
     This Python function takes in response data and parameters to clean and process the data based on
     different conditions such as signal-to-noise ratio (SNR), resting state (RS), and receptive field
@@ -737,13 +764,15 @@ def get_clean_array(resp_array, condition_type='SNR', date='090817', monkey='L',
 
     if condition_type == 'SNR_spont':
         sum_binned = isolate_norm_spont(resp_array=resp_array, bin_function=bin_function, window_size=w_size, date=date, 
-                                        monkey=monkey, shuffle=shuffle, raw_resp=raw_resp, spont_stim_off=spont_stim_off)
+                                        monkey=monkey, shuffle=shuffle, raw_resp=raw_resp, spont_stim_off=spont_stim_off,
+                                        return_binned=return_binned)
     elif condition_type == 'SNR':
         sum_binned = isolate_norm_resps(resp_array, stim_on=stim_on, 
                                         stim_off=stim_off, 
                                         bin_function=bin_function, 
                                         window_size=w_size, date=date, 
-                                        monkey=monkey, shuffle=shuffle, raw_resp=raw_resp) 
+                                        monkey=monkey, shuffle=shuffle, raw_resp=raw_resp,
+                                        return_binned=return_binned) 
     elif condition_type == 'RS':
         if bin_function is not None:
             sum_binned = bin_function(resp_array, window_size=w_size)
@@ -762,12 +791,14 @@ def get_clean_array(resp_array, condition_type='SNR', date='090817', monkey='L',
     elif condition_type == 'RF':
         sum_binned, binned_labels = isolate_norm_resps_RF(resp_array, stim_on=stim_on, stim_off=stim_off,
                                                         bin_function=bin_function, window_size=w_size,
-                                                        date=date, monkey=monkey, raw_resp=raw_resp)
+                                                        date=date, monkey=monkey, raw_resp=raw_resp,
+                                                        return_binned=return_binned)
     
     elif condition_type == 'RF_spont':
         sum_binned, binned_labels = isolate_norm_spont_RF(resp_array, stim_on=stim_on, stim_off=stim_off,
                                                         bin_function=bin_function, window_size=w_size,
-                                                        date=date, monkey=monkey, raw_resp=raw_resp,spont_stim_off=spont_stim_off)
+                                                        date=date, monkey=monkey, raw_resp=raw_resp,
+                                                        spont_stim_off=spont_stim_off, return_binned=return_binned)
 
     del resp_array
 

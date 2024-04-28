@@ -4,7 +4,7 @@ import numpy as np
 from scipy.sparse.linalg import eigsh
 import copy
 
-main_dir = '/Users/diannahidalgo/Documents/thesis_shenanigans/inter_areal_predictability/'
+main_dir = ''
 
 class mt_retriever:
     ori32_filenames = ['ori32_M160825_MP027_2016-12-15','ori32_M170604_MP031_2017-06-26', 'ori32_M170714_MP032_2017-08-02', 'ori32_M170717_MP033_2017-08-17']
